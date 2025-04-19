@@ -281,8 +281,17 @@ func (s *Cache[S]) DebugLogin(user, pass string, parent http.Handler) http.Handl
 		if ok := s.CallHandlerWithData(w, r, parent); !ok {
 			if id, err := s.CreateSessionToken(user, pass); err == nil {
 				http.SetCookie(w, CreateSecureCookie("id", id))
-				log.Println("auto login redirect to", r.URL)
-				http.Redirect(w, r, r.URL.Path, http.StatusFound)
+				if se := s.getSession(id); se != nil {
+					log.Println("debug login successful")
+					se.mutex.Lock()
+					defer se.mutex.Unlock()
+					se.lastAccess = time.Now()
+					nc := context.WithValue(r.Context(), "data", se.data)
+					parent.ServeHTTP(w, r.WithContext(nc))
+					return
+				} else {
+					log.Println("no matching session found")
+				}
 			}
 			http.Redirect(w, r, s.loginUrl+"?t="+EncodeTarget(r.URL.Path), http.StatusFound)
 		}
