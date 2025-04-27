@@ -133,6 +133,31 @@ func (s *Cache[S]) getSession(token string) *sessionCacheEntry[S] {
 	return nil
 }
 
+// CreateDebugSession creates a debug session for the given user.
+// Due to the fixed token, a server restart does not invalidate the session,
+// because the token is always the same.
+func (s *Cache[S]) CreateDebugSession(user, pass, token string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	p, err := s.sm.CreatePersist(user, pass)
+	if err != nil {
+		return err
+	}
+
+	data, err := p.Load()
+	if err != nil {
+		return err
+	}
+
+	ses := &sessionCacheEntry[S]{lastAccess: time.Now(), data: data, user: user, persist: p}
+	s.sessions[token] = ses
+
+	log.Println("created debug session for user", user)
+
+	return nil
+}
+
 func (s *Cache[S]) CreateSessionToken(user string, pass string) (string, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -273,29 +298,6 @@ func GetData[D any](r *http.Request) *D {
 		return data
 	}
 	return nil
-}
-
-func (s *Cache[S]) DebugLogin(user, pass string, parent http.Handler) http.HandlerFunc {
-	log.Println("--- DEBUG LOGIN ENABLED ---")
-	return func(w http.ResponseWriter, r *http.Request) {
-		if ok := s.CallHandlerWithData(w, r, parent); !ok {
-			if id, err := s.CreateSessionToken(user, pass); err == nil {
-				http.SetCookie(w, CreateSecureCookie("id", id))
-				if se := s.getSession(id); se != nil {
-					log.Println("debug login successful")
-					se.mutex.Lock()
-					defer se.mutex.Unlock()
-					se.lastAccess = time.Now()
-					nc := context.WithValue(r.Context(), "data", se.data)
-					parent.ServeHTTP(w, r.WithContext(nc))
-					return
-				} else {
-					log.Println("no matching session found")
-				}
-			}
-			http.Redirect(w, r, s.loginUrl+"?t="+EncodeTarget(r.URL.Path), http.StatusFound)
-		}
-	}
 }
 
 // CheckSessionFunc is a wrapper that redirects to /login if no valid session id is found
