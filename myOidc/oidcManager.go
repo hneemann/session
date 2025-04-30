@@ -51,6 +51,7 @@ func (p *oicdPersist[D]) Save(d *D) error {
 func (o *OidcDataManager[D]) CreatePersist(user, _ string) (session.Persist[D], error) {
 	f, err := o.fileSystemFactory(user, false)
 	if err == os.ErrNotExist {
+		log.Println("new oidc user; create new file system for user:", user)
 		// if the user does not exist, create a new file system
 		f, err = o.fileSystemFactory(user, true)
 	}

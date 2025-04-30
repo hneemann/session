@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"html/template"
 	"log"
 	"math/rand"
@@ -180,12 +181,12 @@ func (s *Cache[S]) CreateSessionToken(user string, pass string) (string, error) 
 
 	p, err := s.sm.CreatePersist(user, pass)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("could not create persistance for %s: %w", user, err)
 	}
 
 	data, err := p.Load()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("could not load data for %s: %w", user, err)
 	}
 	token := createRandomString()
 
