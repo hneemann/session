@@ -5,7 +5,6 @@ import (
 	"github.com/hneemann/session/fileSys"
 	"log"
 	"net/http"
-	"os"
 )
 
 type OidcDataManager[D any] struct {
@@ -33,33 +32,50 @@ func (o *OidcDataManager[D]) CheckPassword(_, _ string) bool {
 }
 
 type oicdPersist[D any] struct {
-	user string
-	dm   *OidcDataManager[D]
-	fs   fileSys.FileSystem
+	user          string
+	dm            *OidcDataManager[D]
+	fs            fileSys.FileSystem
+	dataAvailable bool
 }
 
 func (p *oicdPersist[D]) Load() (*D, error) {
-	log.Println("load data:", p.user)
-	return p.dm.filePersist.Load(p.fs)
+	if p.dataAvailable {
+		log.Println("load data:", p.user)
+		return p.dm.filePersist.Load(p.fs)
+	} else {
+		log.Println("create empty data for new user", p.user)
+		var d D
+		return &d, nil
+	}
 }
 
 func (p *oicdPersist[D]) Save(d *D) error {
 	log.Println("save data:", p.user)
-	return p.dm.filePersist.Save(p.fs, d)
+	err := p.dm.filePersist.Save(p.fs, d)
+	if err == nil {
+		p.dataAvailable = true
+	}
+	return err
 }
 
 func (o *OidcDataManager[D]) CreatePersist(user, _ string) (session.Persist[D], error) {
+	dataAvailable := true
 	f, err := o.fileSystemFactory(user, false)
-	if err == os.ErrNotExist {
-		log.Println("new oidc user; create new file system for user:", user)
+	if err != nil {
+		dataAvailable = false
+		log.Println("new oidc user detected:", err)
+		log.Println("create new file system for user:", user)
 		// if the user does not exist, create a new file system
 		f, err = o.fileSystemFactory(user, true)
+		if err != nil {
+			log.Println("error creating file system for new user:", err)
+		}
 	}
 
 	if err != nil {
 		return nil, err
 	}
-	return &oicdPersist[D]{user: user, dm: o, fs: f}, nil
+	return &oicdPersist[D]{user: user, dm: o, fs: f, dataAvailable: dataAvailable}, nil
 }
 
 func CreateOidcSession[D any](s *session.Cache[D]) CreateSession {
