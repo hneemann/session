@@ -288,8 +288,6 @@ func (s *Cache[D]) CallHandlerWithData(w http.ResponseWriter, r *http.Request, p
 		} else {
 			log.Println("no matching session found")
 		}
-	} else {
-		log.Println("no cookie send")
 	}
 	return false
 }
