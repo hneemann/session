@@ -259,6 +259,7 @@ func (s *Cache[S]) Close() {
 	for _, sce := range s.sessions {
 		sce.saveData()
 	}
+	log.Println("written all session data")
 	s.sm = nil
 }
 

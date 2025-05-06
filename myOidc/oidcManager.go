@@ -50,7 +50,7 @@ func (p *oicdPersist[D]) Load() (*D, error) {
 }
 
 func (p *oicdPersist[D]) Save(d *D) error {
-	log.Println("save data:", p.user)
+	log.Println("write data:", p.user)
 	err := p.dm.filePersist.Save(p.fs, d)
 	if err == nil {
 		p.dataAvailable = true
