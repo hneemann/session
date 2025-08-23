@@ -217,6 +217,11 @@ func (s *Cache[S]) registerUser(user, pass, pass2 string) (string, error) {
 		return "", err
 	}
 
+	err = p.Save(data)
+	if err != nil {
+		return "", fmt.Errorf("could not save initial data %s: %w", user, err)
+	}
+
 	token := createRandomString()
 
 	ses := &sessionCacheEntry[S]{lastAccess: time.Now(), data: data, user: user, persist: p}
