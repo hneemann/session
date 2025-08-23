@@ -144,6 +144,10 @@ func (c *cryptoFileSystem) Reader(name string) (io.ReadCloser, error) {
 	return io.NopCloser(bytes.NewReader(data)), nil
 }
 
+func (c *cryptoFileSystem) Delete(name string) error {
+	return c.parent.Delete(name)
+}
+
 func NewCryptFileSystem(f FileSystem, pass string) (FileSystem, error) {
 	salt, err := ReadFile(f, "salt")
 	if err != nil {

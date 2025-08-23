@@ -15,6 +15,8 @@ type FileSystem interface {
 	Reader(name string) (io.ReadCloser, error)
 	//Writer returns a writer for the file with the given name
 	Writer(name string) (io.WriteCloser, error)
+	//Delete deletes the file with the given name
+	Delete(name string) error
 }
 
 func CloseLog(w io.Closer) {
@@ -53,6 +55,10 @@ func (f SimpleFileSystem) Writer(name string) (io.WriteCloser, error) {
 	return os.Create(filepath.Join(string(f), name))
 }
 
+func (f SimpleFileSystem) Delete(name string) error {
+	return os.Remove(filepath.Join(string(f), name))
+}
+
 type MemoryFileSystem map[string][]byte
 
 func (m MemoryFileSystem) Reader(name string) (io.ReadCloser, error) {
@@ -80,4 +86,9 @@ func (m *mWriter) Close() error {
 
 func (m MemoryFileSystem) Writer(name string) (io.WriteCloser, error) {
 	return &mWriter{name: name, mfs: m}, nil
+}
+
+func (m MemoryFileSystem) Delete(name string) error {
+	delete(m, name)
+	return nil
 }
