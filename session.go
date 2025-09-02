@@ -134,6 +134,15 @@ func (s *Cache[S]) getSession(token string) *sessionCacheEntry[S] {
 	return nil
 }
 
+func (s *Cache[S]) GetSessionData(token string) *S {
+	se := s.getSession(token)
+	if se == nil {
+		return nil
+	}
+
+	return se.data
+}
+
 // CreateDebugSession creates a debug session for the given user.
 // Due to the fixed token, a server restart does not invalidate the session,
 // because the token is always the same.
