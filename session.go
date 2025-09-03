@@ -388,13 +388,17 @@ func (s *Cache[S]) LoginHandler(loginTemp *template.Template) http.HandlerFunc {
 			pass := r.FormValue("password")
 			encodedTarget = r.FormValue("target")
 
-			var id string
-			if id, err = s.CreateSessionToken(user, pass); err == nil {
-				http.SetCookie(w, CreateSecureCookie("id", id))
-				target := DecodeTarget(encodedTarget)
-				log.Println("redirect to", target)
-				http.Redirect(w, r, target, http.StatusFound)
-				return
+			if len(user) >= 4 && len(pass) >= 4 {
+				var id string
+				if id, err = s.CreateSessionToken(user, pass); err == nil {
+					http.SetCookie(w, CreateSecureCookie("id", id))
+					target := DecodeTarget(encodedTarget)
+					log.Println("redirect to", target)
+					http.Redirect(w, r, target, http.StatusFound)
+					return
+				}
+			} else {
+				err = errors.New("wrong password")
 			}
 		}
 
@@ -432,7 +436,7 @@ func (s *Cache[S]) LogoutHandler(logoutTemp *template.Template) http.HandlerFunc
 	}
 }
 
-// RegisterHandler is th handler to handle the registration.
+// RegisterHandler is the handler to handle the registration.
 // The given template is used to render the registration page.
 // It needs to contain a form with the fields username, password and password2.
 func (s *Cache[S]) RegisterHandler(registerTemp *template.Template) http.HandlerFunc {
@@ -449,13 +453,17 @@ func (s *Cache[S]) RegisterHandler(registerTemp *template.Template) http.Handler
 			pass2 := r.FormValue("password2")
 			encodedTarget = r.FormValue("target")
 
-			var id string
-			if id, err = s.registerUser(user, pass, pass2); err == nil {
-				http.SetCookie(w, CreateSecureCookie("id", id))
-				target := DecodeTarget(encodedTarget)
-				log.Println("redirect to", target)
-				http.Redirect(w, r, target, http.StatusFound)
-				return
+			if len(user) >= 4 && len(pass) >= 4 {
+				var id string
+				if id, err = s.registerUser(user, pass, pass2); err == nil {
+					http.SetCookie(w, CreateSecureCookie("id", id))
+					target := DecodeTarget(encodedTarget)
+					log.Println("redirect to", target)
+					http.Redirect(w, r, target, http.StatusFound)
+					return
+				}
+			} else {
+				err = errors.New("username or password too short, at least four characters are required")
 			}
 		}
 		err = registerTemp.Execute(w, LoginData{
