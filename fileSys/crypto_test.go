@@ -42,4 +42,11 @@ func Test_CryptFS(t *testing.T) {
 	d, err := ReadFile(f, "test")
 	assert.NoError(t, err)
 	assert.EqualValues(t, data, string(d))
+
+	f, err = NewCryptFileSystem(m, "zzz")
+	assert.NoError(t, err)
+	d, err = ReadFile(f, "test")
+	assert.NoError(t, err)
+	assert.EqualValues(t, data, string(d))
+
 }

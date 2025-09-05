@@ -10,7 +10,7 @@ import (
 func Test(t *testing.T) {
 	mfs := NewMemoryFileSystemFactory()
 	sc := NewSessionCache[string](
-		NewDataManager[string](mfs, testPersist{}), 10*time.Minute, 10*time.Minute)
+		NewFileManager[string](mfs, testPersist{}), 10*time.Minute, 10*time.Minute)
 
 	// passwords do not match
 	_, err := sc.registerUser("test", "test", "test2")
@@ -47,7 +47,7 @@ func Test(t *testing.T) {
 
 	// create new session cache
 	sc = NewSessionCache[string](
-		NewDataManager[string](mfs, testPersist{}), 10*time.Minute, 10*time.Minute)
+		NewFileManager[string](mfs, testPersist{}), 10*time.Minute, 10*time.Minute)
 
 	id3, err := sc.CreateSessionToken("test", "test")
 	assert.NoError(t, err)

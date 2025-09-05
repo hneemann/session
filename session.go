@@ -13,24 +13,33 @@ import (
 	"time"
 )
 
-// Persist is the interface that needs to be implemented to persist the session data
+// Persist is the interface that needs to be implemented to persist the session data.
+// It is agnostic on how to store the data. It could be a file system or a database.
+// The Manager is responsible for creating the Persist interface for a user.
 type Persist[D any] interface {
 	// Load is called to load the data from the persistent storage
 	Load() (*D, error)
 	// Save is called to save the data to the persistent storage
 	Save(d *D) error
+	// Init is called to notify the data D that a Persist interface is created.
+	// This can be used to set the file system or database connection in the data if
+	// the data requires direct access to the storage backend.
+	// It may be that this method is not called at all.
+	// It is called if a new user is created.
+	Init(data *D) error
 }
 
 // Manager is the interface that needs to be implemented to manage the session data
-// D is the type of the data that is stored in the session
+// D is the type of the data that is stored in the session.
 // The manager is responsible for creating new users, checking the password and
-// creating the persist interface for the user
+// creating the Persist interface for the user
 type Manager[D any] interface {
+	DoesUserExist(user string) bool
 	// CreateUser is called if a new user needs to be created
 	CreateUser(user, pass string) (*D, error)
 	// CheckPassword is called to check if the password is correct
 	CheckPassword(user, pass string) bool
-	// CreatePersist create the persist interface used to
+	// CreatePersist create the Persist interface used to
 	// restore and persist the user data
 	CreatePersist(user, pass string) (Persist[D], error)
 }
@@ -226,9 +235,9 @@ func (s *Cache[S]) registerUser(user, pass, pass2 string) (string, error) {
 		return "", err
 	}
 
-	err = p.Save(data)
+	err = p.Init(data)
 	if err != nil {
-		return "", fmt.Errorf("could not save initial data %s: %w", user, err)
+		return "", fmt.Errorf("could not initialize initial data %s: %w", user, err)
 	}
 
 	token := createRandomString()

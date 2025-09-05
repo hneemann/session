@@ -21,9 +21,13 @@ func (t testPersist) Save(f fileSys.FileSystem, d *string) error {
 	return fileSys.WriteFile(f, "test", []byte(*d))
 }
 
+func (t testPersist) Init(_ fileSys.FileSystem, _ *string) error {
+	return nil
+}
+
 func Test_User(t *testing.T) {
 	m := NewMemoryFileSystemFactory()
-	dm := NewDataManager[string](m, testPersist{})
+	dm := NewFileManager[string](m, testPersist{})
 
 	// invalid user name
 	_, err := dm.CreateUser("#+-", "test")
@@ -51,7 +55,7 @@ func Test_User(t *testing.T) {
 
 func Test_Data(t *testing.T) {
 	m := NewMemoryFileSystemFactory()
-	dm := NewDataManager[string](m, testPersist{})
+	dm := NewFileManager[string](m, testPersist{})
 
 	_, err := dm.CreateUser("test", "test")
 	assert.NoError(t, err)
@@ -82,7 +86,7 @@ func Test_Data(t *testing.T) {
 
 func Test_DataEncrypted(t *testing.T) {
 	m := NewMemoryFileSystemFactory()
-	dm := NewDataManager[string](m, testPersist{}).EnableEncryption()
+	dm := NewFileManager[string](m, testPersist{}).EnableEncryption()
 
 	_, err := dm.CreateUser("test", "test")
 	assert.NoError(t, err)

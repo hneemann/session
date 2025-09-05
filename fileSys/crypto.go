@@ -163,7 +163,31 @@ func NewCryptFileSystem(f FileSystem, pass string) (FileSystem, error) {
 		}
 	}
 
-	key := pbkdf2.Key([]byte(pass), salt, 4096, 32, sha1.New)
+	passwordKey := pbkdf2.Key([]byte(pass), salt, 4096, 32, sha1.New)
+
+	key, err := ReadFile(f, "key")
+	if err != nil {
+		key = make([]byte, 32)
+		_, err = rand.Read(key)
+		if err != nil {
+			return nil, fmt.Errorf("could not create master: %w", err)
+		}
+
+		encKey, err := encryptData(key, passwordKey)
+		if err != nil {
+			return nil, fmt.Errorf("could not encrypt master: %w", err)
+		}
+
+		err = WriteFile(f, "key", encKey)
+		if err != nil {
+			return nil, fmt.Errorf("could not write master: %w", err)
+		}
+	} else {
+		key, err = decryptData(key, passwordKey)
+		if err != nil {
+			return nil, fmt.Errorf("could not decrypt master: %w", err)
+		}
+	}
 
 	return &cryptoFileSystem{
 		parent: f,
