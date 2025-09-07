@@ -4,6 +4,7 @@ go 1.23.8
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/sigurn/crc16 v0.0.0-20240131213347-83fcde1e29d1
 	github.com/stretchr/testify v1.10.0
 	github.com/zitadel/oidc/v3 v3.37.0
 	golang.org/x/crypto v0.37.0

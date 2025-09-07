@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"github.com/hneemann/session/fileSys"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -110,4 +111,88 @@ func Test_DataEncrypted(t *testing.T) {
 	assert.NoError(t, err)
 	// not equal because of encryption
 	assert.False(t, "Hello World" == string(b))
+}
+
+func Test_DataEncryptedChangePw(t *testing.T) {
+	m := NewMemoryFileSystemFactory()
+	dm := NewFileManager[string](m, testPersist{}).EnableEncryption()
+
+	_, err := dm.CreateUser("test", "test")
+	assert.NoError(t, err)
+
+	// access data
+	pe, err := dm.CreatePersist("test", "test")
+	assert.NoError(t, err)
+
+	testData := "Hello World"
+	err = pe.Save(&testData)
+	assert.NoError(t, err)
+
+	d, err := pe.Load()
+	assert.NoError(t, err)
+	assert.EqualValues(t, "Hello World", *d)
+
+	// change password
+	err = dm.ChangePassword("test", "test", "testChanged")
+	assert.NoError(t, err)
+
+	// check data still accessible with new password
+	assert.True(t, dm.CheckPassword("test", "testChanged"))
+
+	dm = NewFileManager[string](m, testPersist{}).EnableEncryption()
+	pe, err = dm.CreatePersist("test", "testChanged")
+	assert.NoError(t, err)
+
+	d, err = pe.Load()
+	assert.NoError(t, err)
+	assert.EqualValues(t, "Hello World", *d)
+
+	if c, ok := pe.(fileSys.CryptoRecovery); ok {
+		k, err := c.CreateRecoveryKey()
+		assert.NoError(t, err)
+		fmt.Println("Recovery Key:", k)
+	}
+}
+
+func Test_DataEncryptedRecovery(t *testing.T) {
+	m := NewMemoryFileSystemFactory()
+	dm := NewFileManager[string](m, testPersist{}).EnableEncryption()
+
+	_, err := dm.CreateUser("test", "test")
+	assert.NoError(t, err)
+
+	// access data
+	pe, err := dm.CreatePersist("test", "test")
+	assert.NoError(t, err)
+
+	testData := "Hello World"
+	err = pe.Save(&testData)
+	assert.NoError(t, err)
+
+	// get recovery key
+	recoveryKey := ""
+	if c, ok := pe.(fileSys.CryptoRecovery); ok {
+		recoveryKey, err = c.CreateRecoveryKey()
+		assert.NoError(t, err)
+		fmt.Println("Recovery Key:", recoveryKey)
+	} else {
+		t.Fatal("no recovery key possible")
+	}
+
+	// simulate lost password and restore access with a recovery key
+	system, err := m("test", false)
+	assert.NoError(t, err)
+	err = fileSys.RestoreAccess(system, "testRestored", recoveryKey)
+	assert.NoError(t, err)
+
+	// try to access with old password - should fail
+	assert.False(t, dm.CheckPassword("test", "test"))
+	// try to access with new password - should work
+	assert.True(t, dm.CheckPassword("test", "testRestored"))
+
+	pe, err = dm.CreatePersist("test", "testRestored")
+	assert.NoError(t, err)
+	d, err := pe.Load()
+	assert.NoError(t, err)
+	assert.EqualValues(t, "Hello World", *d)
 }

@@ -78,6 +78,40 @@ func (fm *FileManager[D]) CheckPassword(user string, pass string) bool {
 	return true
 }
 
+func (fm *FileManager[D]) ChangePassword(user string, oldPass, newPass string) error {
+	userFS, err := fm.fileSystemFactory(user, false)
+	if err != nil {
+		return err
+	}
+	b, err := fileSys.ReadFile(userFS, "id")
+	if err != nil {
+		return err
+	}
+	err = bcrypt.CompareHashAndPassword(b, []byte(oldPass))
+	if err != nil {
+		return err
+	}
+
+	bcryptPass, err := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	if fm.crypt {
+		// re-encrypt key with new password
+		cf, err := fileSys.NewCryptFileSystem(userFS, oldPass)
+		if err != nil {
+			return err
+		}
+		err = cf.ChangePassword(newPass)
+		if err != nil {
+			return err
+		}
+	}
+
+	return fileSys.WriteFile(userFS, "id", bcryptPass)
+}
+
 type persist[D any] struct {
 	user string
 	fm   *FileManager[D]
@@ -96,6 +130,13 @@ func (p *persist[D]) Save(d *D) error {
 
 func (p *persist[D]) Init(d *D) error {
 	return p.fm.filePersist.Init(p.fs, d)
+}
+
+func (p *persist[D]) CreateRecoveryKey() (string, error) {
+	if cf, ok := p.fs.(*fileSys.CryptoFileSystem); ok {
+		return cf.CreateRecoveryKey()
+	}
+	return "", errors.New("encryption not enabled")
 }
 
 func (fm *FileManager[D]) CreatePersist(user, pass string) (Persist[D], error) {

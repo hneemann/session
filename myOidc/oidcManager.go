@@ -22,7 +22,11 @@ func NewOidcDataManager[D any](parent session.Manager[D]) *OidcDataManager[D] {
 }
 
 func (o *OidcDataManager[D]) CreateUser(_, _ string) (*D, error) {
-	panic("create is not possible")
+	panic("create user is not possible")
+}
+
+func (o *OidcDataManager[D]) ChangePassword(user, oldPass, newPass string) error {
+	panic("change password is not possible")
 }
 
 func (o *OidcDataManager[D]) CheckPassword(_, _ string) bool {

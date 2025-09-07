@@ -48,5 +48,51 @@ func Test_CryptFS(t *testing.T) {
 	d, err = ReadFile(f, "test")
 	assert.NoError(t, err)
 	assert.EqualValues(t, data, string(d))
+}
 
+func Test_ChangePw(t *testing.T) {
+	m := make(MemoryFileSystem)
+	f, err := NewCryptFileSystem(m, "zzz")
+	assert.NoError(t, err)
+
+	fileContentData := []byte("Hello World")
+	err = WriteFile(f, "test", fileContentData)
+	assert.NoError(t, err)
+
+	err = f.ChangePassword("uuu")
+	assert.NoError(t, err)
+	u, err := NewCryptFileSystem(m, "uuu")
+	assert.NoError(t, err)
+	d, err := ReadFile(u, "test")
+	assert.NoError(t, err)
+
+	assert.EqualValues(t, fileContentData, d)
+}
+
+func Test_Recovery(t *testing.T) {
+	m := make(MemoryFileSystem)
+	f, err := NewCryptFileSystem(m, "zzz")
+	assert.NoError(t, err)
+
+	fileContentData := []byte("Hello World")
+	err = WriteFile(f, "test", fileContentData)
+	assert.NoError(t, err)
+
+	rkStr, err := f.CreateRecoveryKey()
+	assert.NoError(t, err)
+
+	err = RestoreAccess(m, "uuu", rkStr)
+	assert.NoError(t, err)
+
+	u, err := NewCryptFileSystem(m, "uuu")
+	assert.NoError(t, err)
+	d, err := ReadFile(u, "test")
+	assert.NoError(t, err)
+
+	assert.EqualValues(t, fileContentData, d)
+}
+
+func Test_BrokenRecovery(t *testing.T) {
+	_, err := parseRecoveryKey("0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000")
+	assert.Error(t, err)
 }

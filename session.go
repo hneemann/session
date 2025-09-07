@@ -40,8 +40,12 @@ type Manager[D any] interface {
 	// CheckPassword is called to check if the password is correct
 	CheckPassword(user, pass string) bool
 	// CreatePersist create the Persist interface used to
-	// restore and persist the user data
+	// restore and persist the user data.
+	// It does not check if the password is correct.
+	// Password is only given to derive encryption keys if required.
 	CreatePersist(user, pass string) (Persist[D], error)
+	// ChangePassword changes the password of the user
+	ChangePassword(user, oldPass, newPass string) error
 }
 
 type sessionCacheEntry[D any] struct {
