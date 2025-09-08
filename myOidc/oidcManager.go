@@ -61,6 +61,9 @@ func (o *OidcDataManager[D]) CreatePersist(user, _ string) (session.Persist[D], 
 
 func CreateOidcSession[D any](s *session.Cache[D]) CreateSession {
 	return func(ident string, admin bool, w http.ResponseWriter) {
+		for ident[len(ident)-1] == '=' {
+			ident = ident[:len(ident)-1]
+		}
 		var id string
 		var err error
 		if id, err = s.CreateSessionToken(ident, ""); err == nil {
