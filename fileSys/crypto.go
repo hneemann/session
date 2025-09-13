@@ -151,6 +151,10 @@ func (c *CryptoFileSystem) Delete(name string) error {
 	return c.parent.Delete(name)
 }
 
+func (c *CryptoFileSystem) Files(yield func(string, error) bool) {
+	c.parent.Files(yield)
+}
+
 func (c *CryptoFileSystem) CreateRecoveryKey() (string, error) {
 	var buf bytes.Buffer
 	for i, b := range c.key {

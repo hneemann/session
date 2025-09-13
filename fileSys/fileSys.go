@@ -9,14 +9,17 @@ import (
 )
 
 // FileSystem is an interface for reading and writing files.
-// Is created to access the user data
+// Is created to access the user data.
 type FileSystem interface {
-	//Reader returns a reader for the file with the given name
+	// Reader returns a reader for the file with the given name
 	Reader(name string) (io.ReadCloser, error)
-	//Writer returns a writer for the file with the given name
+	// Writer returns a writer for the file with the given name
 	Writer(name string) (io.WriteCloser, error)
-	//Delete deletes the file with the given name
+	// Delete deletes the file with the given name
 	Delete(name string) error
+	// Files iterates over all file names and calls the given
+	// function for each name.
+	Files(func(name string, err error) bool)
 }
 
 func CloseLog(w io.Closer) {
@@ -59,6 +62,32 @@ func (f SimpleFileSystem) Delete(name string) error {
 	return os.Remove(filepath.Join(string(f), name))
 }
 
+func (f SimpleFileSystem) Files(yield func(string, error) bool) {
+	dir, err := os.Open(string(f))
+	if err != nil {
+		yield("", err)
+		return
+	}
+	list, err := dir.ReadDir(-1)
+	if err != nil {
+		yield("", err)
+		return
+	}
+	err = dir.Close()
+	if err != nil {
+		log.Println("error closing directory:", err)
+		yield("", err)
+		return
+	}
+	for _, entry := range list {
+		if !entry.IsDir() {
+			if !yield(entry.Name(), nil) {
+				return
+			}
+		}
+	}
+}
+
 type MemoryFileSystem map[string][]byte
 
 func (m MemoryFileSystem) Reader(name string) (io.ReadCloser, error) {
@@ -91,4 +120,12 @@ func (m MemoryFileSystem) Writer(name string) (io.WriteCloser, error) {
 func (m MemoryFileSystem) Delete(name string) error {
 	delete(m, name)
 	return nil
+}
+
+func (m MemoryFileSystem) Files(yield func(string, error) bool) {
+	for n := range m {
+		if !yield(n, nil) {
+			return
+		}
+	}
 }
