@@ -488,3 +488,67 @@ func (s *Cache[S]) RegisterHandler(registerTemp *template.Template) http.Handler
 		}
 	}
 }
+
+func (s *Cache[D]) callHandlerWithUser(parent http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if c, err := r.Cookie("id"); err == nil {
+			id := c.Value
+			if se := s.getSession(id); se != nil {
+				se.mutex.Lock()
+				defer se.mutex.Unlock()
+				se.lastAccess = time.Now()
+				nc := context.WithValue(r.Context(), "user", se.user)
+				parent.ServeHTTP(w, r.WithContext(nc))
+				return
+			} else {
+				log.Println("no matching session found")
+			}
+		}
+	}
+}
+
+type ChangePasswordData struct {
+	Success bool
+	Error   error
+}
+
+// ChangePasswordHandler is the handler to change the password.
+// The given template is used to render the page.
+// It needs to contain a form with the fields oldPassword, password and password2.
+func (s *Cache[S]) ChangePasswordHandler(changePasswordTemp *template.Template) http.HandlerFunc {
+	if changePasswordTemp == nil {
+		panic("changePassword template is nil")
+	}
+
+	return s.callHandlerWithUser(func(w http.ResponseWriter, r *http.Request) {
+		if user, ok := r.Context().Value("user").(string); ok {
+			var err error
+			success := false
+			if r.Method == http.MethodPost {
+				oldPass := r.FormValue("oldPassword")
+				pass := r.FormValue("password")
+				pass2 := r.FormValue("password2")
+
+				if len(pass) >= 4 {
+					if pass == pass2 {
+						err = s.sm.ChangePassword(user, oldPass, pass)
+						if err == nil {
+							success = true
+						}
+					} else {
+						err = errors.New("passwords are not equal")
+					}
+				} else {
+					err = errors.New("username or password too short, at least four characters are required")
+				}
+			}
+			err = changePasswordTemp.Execute(w, ChangePasswordData{
+				Success: success,
+				Error:   err,
+			})
+			if err != nil {
+				log.Println(err)
+			}
+		}
+	})
+}
