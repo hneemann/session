@@ -302,7 +302,7 @@ func createRandomString() string {
 
 // CallHandlerWithData calls the parent handler with the data from the session.
 // The data is stored in the context with the key "data".
-// If no session is found it returns false.
+// If no session is found, it returns false.
 func (s *Cache[D]) CallHandlerWithData(w http.ResponseWriter, r *http.Request, parent http.Handler) bool {
 	if c, err := r.Cookie("id"); err == nil {
 		id := c.Value
@@ -355,6 +355,32 @@ func (s *Cache[S]) CheckSessionRest(parent http.Handler) http.HandlerFunc {
 	}
 }
 
+func (s *Cache[S]) BasicAuthFunc(parent http.HandlerFunc) http.HandlerFunc {
+	return s.BasicAuth(parent)
+}
+
+func (s *Cache[S]) BasicAuth(parent http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, pass, ok := r.BasicAuth()
+		if ok {
+			if len(user) >= 4 && len(pass) >= 4 {
+				if id, err := s.CreateSessionToken(user, pass); err == nil {
+					if se := s.getSession(id); se != nil {
+						se.mutex.Lock()
+						defer se.mutex.Unlock()
+						se.lastAccess = time.Now()
+						nc := context.WithValue(r.Context(), "data", se.data)
+						parent.ServeHTTP(w, r.WithContext(nc))
+						return
+					}
+				}
+			}
+		}
+		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}
+}
+
 type LoginData struct {
 	Target string
 	Error  error
@@ -386,7 +412,7 @@ func CreateSecureCookie(name, value string) *http.Cookie {
 // LoginHandler is a handler that does the login.
 // The given template is used to render the login page.
 // It needs to contain a form with the fields username and password.
-// If the login is successful a cookie with the session id is set and
+// If the login is successful, a cookie with the session id is set and
 // the user is redirected to /.
 func (s *Cache[S]) LoginHandler(loginTemp *template.Template) http.HandlerFunc {
 	if loginTemp == nil {
@@ -504,6 +530,7 @@ func (s *Cache[D]) callHandlerWithUser(parent http.HandlerFunc) http.HandlerFunc
 				log.Println("no matching session found")
 			}
 		}
+		http.Error(w, "Forbidden", http.StatusForbidden)
 	}
 }
 
