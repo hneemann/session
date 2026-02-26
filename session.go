@@ -46,6 +46,8 @@ type Manager[D any] interface {
 	CreatePersist(user, pass string) (Persist[D], error)
 	// ChangePassword changes the password of the user
 	ChangePassword(user, oldPass, newPass string) error
+	// DeleteOldUsers deletes all users that have not logged in for the given time.
+	DeleteOldUsers(maxAge time.Duration) error
 }
 
 type sessionCacheEntry[D any] struct {
@@ -116,6 +118,32 @@ func NewSessionCache[S any](sm Manager[S], tokenLifeTime, dataLifeTime time.Dura
 // SetLoginUrl sets the url to redirect to if no session is found
 func (s *Cache[S]) SetLoginUrl(url string) *Cache[S] {
 	s.loginUrl = url
+	return s
+}
+
+// SetUserLifeTime deletes the user data after the given time. This is useful if the
+// data contains sensitive information that should not be stored for a long time.
+// You could set this to a year, for example, to automatically delete the user if he
+// has not logged in for a year.
+func (s *Cache[S]) SetUserLifeTime(days int) *Cache[S] {
+	if days > 0 {
+		maxAge := time.Duration(days) * 24 * time.Hour
+		go func() {
+			for {
+				t := time.Now()
+				t = time.Date(t.Year(), t.Month(), t.Day()+1, 2, 0, 0, 0, t.Location())
+				select {
+				case <-time.After(time.Until(t)):
+					err := s.sm.DeleteOldUsers(maxAge)
+					if err != nil {
+						log.Println("could not delete old users:", err)
+					}
+				case <-s.shutDown:
+					return
+				}
+			}
+		}()
+	}
 	return s
 }
 

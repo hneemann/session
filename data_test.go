@@ -78,7 +78,7 @@ func Test_Data(t *testing.T) {
 	assert.EqualValues(t, "Hello World", *d)
 
 	// check data written
-	fs, err := m("test", false)
+	fs, err := m.Create("test", false)
 	assert.NoError(t, err)
 	b, err := fileSys.ReadFile(fs, "test")
 	assert.NoError(t, err)
@@ -105,7 +105,7 @@ func Test_DataEncrypted(t *testing.T) {
 	assert.EqualValues(t, "Hello World", *d)
 
 	// check data written
-	fs, err := m("test", false)
+	fs, err := m.Create("test", false)
 	assert.NoError(t, err)
 	b, err := fileSys.ReadFile(fs, "test")
 	assert.NoError(t, err)
@@ -180,7 +180,7 @@ func Test_DataEncryptedRecovery(t *testing.T) {
 	}
 
 	// simulate lost password and restore access with a recovery key
-	system, err := m("test", false)
+	system, err := m.Create("test", false)
 	assert.NoError(t, err)
 	err = fileSys.RestoreAccess(system, "testRestored", recoveryKey)
 	assert.NoError(t, err)

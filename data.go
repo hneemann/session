@@ -2,9 +2,11 @@ package session
 
 import (
 	"errors"
+	"fmt"
 	"github.com/hneemann/session/fileSys"
 	"golang.org/x/crypto/bcrypt"
 	"log"
+	"time"
 	"unicode"
 )
 
@@ -35,8 +37,7 @@ func (fm *FileManager[D]) EnableEncryption() *FileManager[D] {
 }
 
 func (fm *FileManager[D]) DoesUserExist(user string) bool {
-	_, err := fm.fileSystemFactory(user, false)
-	return err == nil
+	return fm.fileSystemFactory.DoesUserExist(user)
 }
 
 func (fm *FileManager[D]) CreateUser(user string, pass string) (*D, error) {
@@ -46,7 +47,7 @@ func (fm *FileManager[D]) CreateUser(user string, pass string) (*D, error) {
 		}
 	}
 
-	userFS, err := fm.fileSystemFactory(user, true)
+	userFS, err := fm.fileSystemFactory.Create(user, true)
 	if err == nil {
 		bcryptPass, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 		if err != nil {
@@ -63,7 +64,7 @@ func (fm *FileManager[D]) CreateUser(user string, pass string) (*D, error) {
 }
 
 func (fm *FileManager[D]) CheckPassword(user string, pass string) bool {
-	userFS, err := fm.fileSystemFactory(user, false)
+	userFS, err := fm.fileSystemFactory.Create(user, false)
 	if err != nil {
 		return false
 	}
@@ -79,7 +80,7 @@ func (fm *FileManager[D]) CheckPassword(user string, pass string) bool {
 }
 
 func (fm *FileManager[D]) ChangePassword(user string, oldPass, newPass string) error {
-	userFS, err := fm.fileSystemFactory(user, false)
+	userFS, err := fm.fileSystemFactory.Create(user, false)
 	if err != nil {
 		return err
 	}
@@ -112,6 +113,14 @@ func (fm *FileManager[D]) ChangePassword(user string, oldPass, newPass string) e
 	return fileSys.WriteFile(userFS, "id", bcryptPass)
 }
 
+func (fm *FileManager[D]) DeleteOldUsers(maxAge time.Duration) error {
+	err := fm.fileSystemFactory.DeleteOldUsers(maxAge)
+	if err != nil {
+		return fmt.Errorf("could not delete old users: %w", err)
+	}
+	return nil
+}
+
 type persist[D any] struct {
 	user string
 	fm   *FileManager[D]
@@ -140,7 +149,7 @@ func (p *persist[D]) CreateRecoveryKey() (string, error) {
 }
 
 func (fm *FileManager[D]) CreatePersist(user, pass string) (Persist[D], error) {
-	f, err := fm.fileSystemFactory(user, false)
+	f, err := fm.fileSystemFactory.Create(user, false)
 	if err != nil {
 		return nil, err
 	}

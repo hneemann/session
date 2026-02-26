@@ -4,6 +4,7 @@ import (
 	"github.com/hneemann/session"
 	"log"
 	"net/http"
+	"time"
 )
 
 // OidcDataManager is a session.Manager that uses an underlying session.Manager.
@@ -57,6 +58,10 @@ func (o *OidcDataManager[D]) CreatePersist(user, _ string) (session.Persist[D], 
 		return p, nil
 	}
 	return o.parent.CreatePersist(user, "")
+}
+
+func (o *OidcDataManager[D]) DeleteOldUsers(maxAge time.Duration) error {
+	return o.parent.DeleteOldUsers(maxAge)
 }
 
 func CreateOidcSession[D any](s *session.Cache[D]) CreateSession {
