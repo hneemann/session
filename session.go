@@ -127,6 +127,7 @@ func (s *Cache[S]) SetLoginUrl(url string) *Cache[S] {
 // has not logged in for a year.
 func (s *Cache[S]) SetUserLifeTime(days int) *Cache[S] {
 	if days > 0 {
+		log.Printf("set user life time to %d days", days)
 		maxAge := time.Duration(days) * 24 * time.Hour
 		go func() {
 			for {
