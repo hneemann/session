@@ -1,6 +1,7 @@
 package session
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"github.com/hneemann/session/fileSys"
 	"log"
@@ -139,4 +140,30 @@ func (m mfs) DeleteOldUsers(maxAge time.Duration) error {
 // files in memory only. Mainly used for testing.
 func NewMemoryFileSystemFactory() FileSystemFactory {
 	return make(mfs)
+}
+
+type hashUser struct {
+	parent FileSystemFactory
+}
+
+func NewHashUser(f FileSystemFactory) FileSystemFactory {
+	return hashUser{f}
+}
+
+func (h hashUser) Create(user string, create bool) (fileSys.FileSystem, error) {
+	return h.parent.Create(HashUser(user), create)
+}
+
+func (h hashUser) DoesUserExist(user string) bool {
+	return h.parent.DoesUserExist(HashUser(user))
+}
+
+func (h hashUser) DeleteOldUsers(maxAge time.Duration) error {
+	return h.parent.DeleteOldUsers(maxAge)
+}
+
+func HashUser(user string) string {
+	hash := sha1.New()
+	b := hash.Sum([]byte(user))
+	return fmt.Sprintf("%X", b)
 }

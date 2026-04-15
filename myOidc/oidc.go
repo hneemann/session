@@ -151,8 +151,6 @@ func RegisterLogin(mux *http.ServeMux, loginPath, callbackPath string, createSes
 			}
 		}
 
-		log.Println("oidc id:", ident, admin)
-
 		createSession(fmt.Sprint(ident), admin, w)
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
