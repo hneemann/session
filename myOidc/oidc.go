@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
+	"github.com/hneemann/session"
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
 	httphelper "github.com/zitadel/oidc/v3/pkg/http"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
@@ -95,8 +95,8 @@ func RegisterLogin(mux *http.ServeMux, loginPath, callbackPath string, createSes
 
 	// generate some state (representing the state of the user in your application,
 	// e.g. the page where he was before sending him to login
-	state := func() string {
-		return uuid.New().String()
+	state := func(r *http.Request) string {
+		return r.URL.Query().Get("t")
 	}
 
 	urlOptions := []rp.URLParamOpt{
@@ -158,8 +158,10 @@ func RegisterLogin(mux *http.ServeMux, loginPath, callbackPath string, createSes
 			}
 		}
 
+		target := session.DecodeTarget(state)
+
 		createSession(fmt.Sprint(ident), admin, w)
-		http.Redirect(w, r, "/", http.StatusFound)
+		http.Redirect(w, r, target, http.StatusFound)
 	}
 
 	mux.Handle(callbackPath, rp.CodeExchangeHandler(unmarshalToken, provider))

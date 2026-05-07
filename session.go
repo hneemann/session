@@ -365,7 +365,7 @@ func (s *Cache[S]) CheckSessionFunc(parent http.HandlerFunc) http.HandlerFunc {
 func (s *Cache[S]) CheckSession(parent http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if ok := s.CallHandlerWithData(w, r, parent); !ok {
-			http.Redirect(w, r, s.loginUrl+"?t="+EncodeTarget(r.URL.Path), http.StatusFound)
+			http.Redirect(w, r, s.loginUrl+"?t="+EncodeTarget(r.URL.String()), http.StatusFound)
 		}
 	}
 }
