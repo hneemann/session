@@ -5,13 +5,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
+	"github.com/hneemann/session"
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
 	httphelper "github.com/zitadel/oidc/v3/pkg/http"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -93,12 +94,6 @@ func RegisterLogin(mux *http.ServeMux, loginPath, callbackPath string, createSes
 		}
 	}
 
-	// generate some state (representing the state of the user in your application,
-	// e.g. the page where he was before sending him to login
-	state := func() string {
-		return uuid.New().String()
-	}
-
 	urlOptions := []rp.URLParamOpt{
 		rp.WithPromptURLParam("Welcome back!"),
 	}
@@ -107,16 +102,29 @@ func RegisterLogin(mux *http.ServeMux, loginPath, callbackPath string, createSes
 		urlOptions = append(urlOptions, rp.WithResponseModeURLParam(oidc.ResponseMode(responseMode)))
 	}
 
-	// register the AuthURLHandler at your preferred path.
-	// the AuthURLHandler creates the auth request and redirects the user to the auth server.
-	// including state handling with secure cookie and the possibility to use PKCE.
-	// Prompts can optionally be set to inform the server of
-	// any messages that need to be prompted back to the user.
+	// dirty hack to cope with a state function not taking any parameters
+	mux.HandleFunc(loginPath, func(w http.ResponseWriter, r *http.Request) {
+		state := func() string {
+			return r.URL.Query().Get("t")
+		}
+		rp.AuthURLHandler(
+			state,
+			provider,
+			urlOptions...,
+		)(w, r)
+	})
+	/* should be
+
+	state := func(r *http.Request) string {
+		return r.URL.Query().Get("t")
+	}
 	mux.Handle(loginPath, rp.AuthURLHandler(
 		state,
 		provider,
 		urlOptions...,
 	))
+
+	*/
 
 	unmarshalToken := func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, rp rp.RelyingParty) {
 		tok := strings.Split(tokens.IDToken, ".")
@@ -158,8 +166,21 @@ func RegisterLogin(mux *http.ServeMux, loginPath, callbackPath string, createSes
 			}
 		}
 
+		target := session.DecodeTarget(state)
+		// check for targets pointing to a foreign server
+		if target != "/" {
+			u, err := url.Parse(target)
+			if err != nil {
+				log.Println("invalid target: " + err.Error())
+			}
+			if u.Host != "" {
+				log.Println("target contains a host: " + u.Host)
+				target = "/"
+			}
+		}
+
 		createSession(fmt.Sprint(ident), admin, w)
-		http.Redirect(w, r, "/", http.StatusFound)
+		http.Redirect(w, r, target, http.StatusFound)
 	}
 
 	mux.Handle(callbackPath, rp.CodeExchangeHandler(unmarshalToken, provider))
