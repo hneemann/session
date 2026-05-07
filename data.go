@@ -42,7 +42,7 @@ func (fm *FileManager[D]) DoesUserExist(user string) bool {
 
 func (fm *FileManager[D]) CreateUser(user string, pass string) (*D, error) {
 	for _, r := range user {
-		if !(unicode.IsLetter(r) || unicode.IsDigit(r)) {
+		if !(unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_') {
 			return nil, errors.New("username not valid")
 		}
 	}
