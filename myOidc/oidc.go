@@ -33,10 +33,17 @@ func RegisterLogin(mux *http.ServeMux, loginPath, callbackPath string, createSes
 	keyPath := os.Getenv("KEY_PATH")
 	issuer := os.Getenv("ISSUER")
 	tokenIdAttr := os.Getenv("ID_TOKEN_ID_ATTR")
+	if tokenIdAttr == "" {
+		tokenIdAttr = "sub"
+	}
 	tokenRolesAttr := os.Getenv("ID_TOKEN_ROLES_ATTR")
 	tokenRoleAdminValue := os.Getenv("ID_TOKEN_ADMIN_VALUE")
 	callbackHost := os.Getenv("HOST")
-	scopes := strings.Split(os.Getenv("SCOPES"), " ")
+	scopesStr := os.Getenv("SCOPES")
+	if scopesStr == "" {
+		scopesStr = "openid"
+	}
+	scopes := strings.Split(scopesStr, " ")
 	responseMode := os.Getenv("RESPONSE_MODE")
 
 	if clientID == "" || issuer == "" || callbackHost == "" {
