@@ -438,6 +438,8 @@ func CreateSecureCookie(name, value string) *http.Cookie {
 	}
 }
 
+type TemplateFactory func(*http.Request) *template.Template
+
 // LoginHandler is a handler that does the login.
 // The given template is used to render the login page.
 // It needs to contain a form with the fields username and password.
@@ -446,6 +448,15 @@ func CreateSecureCookie(name, value string) *http.Cookie {
 func (s *Cache[S]) LoginHandler(loginTemp *template.Template) http.HandlerFunc {
 	if loginTemp == nil {
 		panic("login template is nil")
+	}
+	return s.LoginHandlerFactory(func(_ *http.Request) *template.Template {
+		return loginTemp
+	})
+}
+
+func (s *Cache[S]) LoginHandlerFactory(loginTempFactory TemplateFactory) http.HandlerFunc {
+	if loginTempFactory == nil {
+		panic("login template factory is nil")
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -470,7 +481,7 @@ func (s *Cache[S]) LoginHandler(loginTemp *template.Template) http.HandlerFunc {
 			}
 		}
 
-		err = loginTemp.Execute(w, LoginData{
+		err = loginTempFactory(r).Execute(w, LoginData{
 			Target: encodedTarget,
 			Error:  err,
 		})
@@ -487,6 +498,15 @@ func (s *Cache[S]) LogoutHandler(logoutTemp *template.Template) http.HandlerFunc
 	if logoutTemp == nil {
 		panic("logout template is nil")
 	}
+	return s.LogoutHandlerFactory(func(_ *http.Request) *template.Template {
+		return logoutTemp
+	})
+}
+
+func (s *Cache[S]) LogoutHandlerFactory(logoutTempFactory TemplateFactory) http.HandlerFunc {
+	if logoutTempFactory == nil {
+		panic("logout template factory is nil")
+	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie("id"); err == nil {
@@ -497,7 +517,7 @@ func (s *Cache[S]) LogoutHandler(logoutTemp *template.Template) http.HandlerFunc
 			}
 			http.SetCookie(w, &http.Cookie{Value: "", Name: "id", Expires: time.Now().Add(-time.Hour)})
 		}
-		err := logoutTemp.Execute(w, nil)
+		err := logoutTempFactory(r).Execute(w, nil)
 		if err != nil {
 			log.Println(err)
 		}
@@ -510,6 +530,15 @@ func (s *Cache[S]) LogoutHandler(logoutTemp *template.Template) http.HandlerFunc
 func (s *Cache[S]) RegisterHandler(registerTemp *template.Template) http.HandlerFunc {
 	if registerTemp == nil {
 		panic("register template is nil")
+	}
+	return s.RegisterHandlerFactory(func(_ *http.Request) *template.Template {
+		return registerTemp
+	})
+}
+
+func (s *Cache[S]) RegisterHandlerFactory(registerTempFactory TemplateFactory) http.HandlerFunc {
+	if registerTempFactory == nil {
+		panic("register template factory is nil")
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -534,7 +563,7 @@ func (s *Cache[S]) RegisterHandler(registerTemp *template.Template) http.Handler
 				err = errors.New("username or password too short, at least four characters are required")
 			}
 		}
-		err = registerTemp.Execute(w, LoginData{
+		err = registerTempFactory(r).Execute(w, LoginData{
 			Target: encodedTarget,
 			Error:  err,
 		})
