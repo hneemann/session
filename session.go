@@ -411,8 +411,9 @@ func (s *Cache[S]) BasicAuth(parent http.Handler) http.HandlerFunc {
 }
 
 type LoginData struct {
-	Target string
-	Error  error
+	Target     string
+	Error      error
+	Translator any
 }
 
 func DecodeTarget(encodedTarget string) string {
@@ -438,7 +439,7 @@ func CreateSecureCookie(name, value string) *http.Cookie {
 	}
 }
 
-type TemplateFactory func(*http.Request) *template.Template
+type I18nFactory func(*http.Request) any
 
 // LoginHandler is a handler that does the login.
 // The given template is used to render the login page.
@@ -449,16 +450,12 @@ func (s *Cache[S]) LoginHandler(loginTemp *template.Template) http.HandlerFunc {
 	if loginTemp == nil {
 		panic("login template is nil")
 	}
-	return s.LoginHandlerFactory(func(_ *http.Request) *template.Template {
-		return loginTemp
+	return s.LoginHandlerFactory(loginTemp, func(request *http.Request) any {
+		return nil
 	})
 }
 
-func (s *Cache[S]) LoginHandlerFactory(loginTempFactory TemplateFactory) http.HandlerFunc {
-	if loginTempFactory == nil {
-		panic("login template factory is nil")
-	}
-
+func (s *Cache[S]) LoginHandlerFactory(loginTemp *template.Template, i18nFactory I18nFactory) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
 		encodedTarget := r.URL.Query().Get("t")
@@ -481,9 +478,10 @@ func (s *Cache[S]) LoginHandlerFactory(loginTempFactory TemplateFactory) http.Ha
 			}
 		}
 
-		err = loginTempFactory(r).Execute(w, LoginData{
-			Target: encodedTarget,
-			Error:  err,
+		err = loginTemp.Execute(w, LoginData{
+			Target:     encodedTarget,
+			Error:      err,
+			Translator: i18nFactory(r),
 		})
 		if err != nil {
 			log.Println(err)
@@ -498,16 +496,12 @@ func (s *Cache[S]) LogoutHandler(logoutTemp *template.Template) http.HandlerFunc
 	if logoutTemp == nil {
 		panic("logout template is nil")
 	}
-	return s.LogoutHandlerFactory(func(_ *http.Request) *template.Template {
-		return logoutTemp
+	return s.LogoutHandlerFactory(logoutTemp, func(request *http.Request) any {
+		return nil
 	})
 }
 
-func (s *Cache[S]) LogoutHandlerFactory(logoutTempFactory TemplateFactory) http.HandlerFunc {
-	if logoutTempFactory == nil {
-		panic("logout template factory is nil")
-	}
-
+func (s *Cache[S]) LogoutHandlerFactory(logoutTemp *template.Template, i18nFactory I18nFactory) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie("id"); err == nil {
 			id := c.Value
@@ -517,7 +511,9 @@ func (s *Cache[S]) LogoutHandlerFactory(logoutTempFactory TemplateFactory) http.
 			}
 			http.SetCookie(w, &http.Cookie{Value: "", Name: "id", Expires: time.Now().Add(-time.Hour)})
 		}
-		err := logoutTempFactory(r).Execute(w, nil)
+		err := logoutTemp.Execute(w, LoginData{
+			Translator: i18nFactory(r),
+		})
 		if err != nil {
 			log.Println(err)
 		}
@@ -531,16 +527,12 @@ func (s *Cache[S]) RegisterHandler(registerTemp *template.Template) http.Handler
 	if registerTemp == nil {
 		panic("register template is nil")
 	}
-	return s.RegisterHandlerFactory(func(_ *http.Request) *template.Template {
-		return registerTemp
+	return s.RegisterHandlerFactory(registerTemp, func(_ *http.Request) any {
+		return nil
 	})
 }
 
-func (s *Cache[S]) RegisterHandlerFactory(registerTempFactory TemplateFactory) http.HandlerFunc {
-	if registerTempFactory == nil {
-		panic("register template factory is nil")
-	}
-
+func (s *Cache[S]) RegisterHandlerFactory(registerTemp *template.Template, i18nFactory I18nFactory) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
 		encodedTarget := r.URL.Query().Get("t")
@@ -563,9 +555,10 @@ func (s *Cache[S]) RegisterHandlerFactory(registerTempFactory TemplateFactory) h
 				err = errors.New("username or password too short, at least four characters are required")
 			}
 		}
-		err = registerTempFactory(r).Execute(w, LoginData{
-			Target: encodedTarget,
-			Error:  err,
+		err = registerTemp.Execute(w, LoginData{
+			Target:     encodedTarget,
+			Error:      err,
+			Translator: i18nFactory(r),
 		})
 		if err != nil {
 			log.Println(err)
