@@ -1,9 +1,12 @@
 package myOidc
 
 import (
+	"errors"
+	"fmt"
 	"github.com/hneemann/session"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -65,16 +68,26 @@ func (o *OidcDataManager[D]) DeleteOldUsers(maxAge time.Duration) error {
 }
 
 func CreateOidcSession[D any](s *session.Cache[D]) CreateSession {
-	return func(ident string, admin bool, w http.ResponseWriter) {
+	tokenIdAttr := os.Getenv("ID_TOKEN_ID_ATTR")
+	if tokenIdAttr == "" {
+		tokenIdAttr = "sub"
+	}
+	return func(idToken map[string]any, w http.ResponseWriter) (string, error) {
+		identValue, ok := idToken[tokenIdAttr]
+		if !ok {
+			log.Println(idToken)
+			return "", errors.New("no id found in IDToken")
+		}
+		ident := fmt.Sprint(identValue)
+
 		for ident[len(ident)-1] == '=' {
 			ident = ident[:len(ident)-1]
 		}
-		var id string
-		var err error
-		if id, err = s.CreateSessionToken(ident, ""); err == nil {
+		if id, err := s.CreateSessionToken(ident, ""); err == nil {
 			http.SetCookie(w, session.CreateSecureCookie("id", id))
-			return
+			return id, nil
+		} else {
+			return "", fmt.Errorf("error creating session: %w", err)
 		}
-		log.Println("error creating session:", err)
 	}
 }

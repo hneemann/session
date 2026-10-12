@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"github.com/hneemann/session"
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
 	httphelper "github.com/zitadel/oidc/v3/pkg/http"
@@ -26,19 +25,13 @@ func createRandomBytes(size int) []byte {
 	return b
 }
 
-type CreateSession func(ident string, admin bool, w http.ResponseWriter)
+type CreateSession func(idToken map[string]any, w http.ResponseWriter) (string, error)
 
 func RegisterLogin(mux *http.ServeMux, loginPath, callbackPath string, createSession CreateSession) bool {
 	clientID := os.Getenv("CLIENT_ID")
 	clientSecret := os.Getenv("CLIENT_SECRET")
 	keyPath := os.Getenv("KEY_PATH")
 	issuer := os.Getenv("ISSUER")
-	tokenIdAttr := os.Getenv("ID_TOKEN_ID_ATTR")
-	if tokenIdAttr == "" {
-		tokenIdAttr = "sub"
-	}
-	tokenRolesAttr := os.Getenv("ID_TOKEN_ROLES_ATTR")
-	tokenRoleAdminValue := os.Getenv("ID_TOKEN_ADMIN_VALUE")
 	callbackHost := os.Getenv("HOST")
 	scopesStr := os.Getenv("SCOPES")
 	if scopesStr == "" {
@@ -148,24 +141,6 @@ func RegisterLogin(mux *http.ServeMux, loginPath, callbackPath string, createSes
 			return
 		}
 
-		ident, ok := m[tokenIdAttr]
-		if !ok {
-			log.Println(m)
-			http.Error(w, "no id found in IDToken", 504)
-			return
-		}
-
-		admin := false
-		if a, ok := m[tokenRolesAttr]; ok {
-			if rs, ok := a.([]any); ok {
-				for _, r := range rs {
-					if fmt.Sprint(r) == tokenRoleAdminValue {
-						admin = true
-					}
-				}
-			}
-		}
-
 		target := session.DecodeTarget(state)
 		// check for targets pointing to a foreign server
 		if target != "/" {
@@ -179,8 +154,12 @@ func RegisterLogin(mux *http.ServeMux, loginPath, callbackPath string, createSes
 			}
 		}
 
-		createSession(fmt.Sprint(ident), admin, w)
-		http.Redirect(w, r, target, http.StatusFound)
+		_, err = createSession(m, w)
+		if err == nil {
+			http.Redirect(w, r, target, http.StatusFound)
+		} else {
+			http.Error(w, err.Error(), 504)
+		}
 	}
 
 	mux.Handle(callbackPath, rp.CodeExchangeHandler(unmarshalToken, provider))
