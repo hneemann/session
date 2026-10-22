@@ -41,7 +41,7 @@ func RegisterLogin(mux *http.ServeMux, loginPath, callbackPath string, createSes
 	responseMode := os.Getenv("RESPONSE_MODE")
 
 	if clientID == "" || issuer == "" || callbackHost == "" {
-		log.Println("missing oidc environment variables: CLIENT_ID, ISSUER, CLIENT_SECRET, HOST, SCOPES, ID_TOKEN_ID_ATTR, ID_TOKEN_ROLE_ATTR, ID_TOKEN_ADMIN_VALUE")
+		log.Println("missing oidc environment variables: CLIENT_ID, ISSUER, CLIENT_SECRET, HOST, SCOPES, ID_TOKEN_ID_ATTR")
 		return false
 	}
 
