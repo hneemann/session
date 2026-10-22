@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/hneemann/session/fileSys"
 	"golang.org/x/crypto/bcrypt"
-	"log"
 	"time"
 	"unicode"
 )
@@ -128,12 +127,10 @@ type persist[D any] struct {
 }
 
 func (p *persist[D]) Load() (*D, error) {
-	log.Println("load data:", p.user)
 	return p.fm.filePersist.Load(p.fs)
 }
 
 func (p *persist[D]) Save(d *D) error {
-	log.Println("save data:", p.user)
 	return p.fm.filePersist.Save(p.fs, d)
 }
 
